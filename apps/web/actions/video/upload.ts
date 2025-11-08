@@ -1,16 +1,12 @@
 "use server";
 
-import {
-	CloudFrontClient,
-	CreateInvalidationCommand,
-} from "@aws-sdk/client-cloudfront";
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { nanoId } from "@cap/database/helpers";
 import { s3Buckets, videos, videoUploads } from "@cap/database/schema";
 import { buildEnv, NODE_ENV, serverEnv } from "@cap/env";
 import { dub, userIsPro } from "@cap/utils";
-import { AwsCredentials, S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import { type Folder, type Organisation, Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
@@ -42,49 +38,7 @@ async function getVideoUploadPresignedUrl({
 			.from(s3Buckets)
 			.where(eq(s3Buckets.ownerId, user.id));
 
-		const s3Config = customBucket
-			? {
-					endpoint: customBucket.endpoint || undefined,
-					region: customBucket.region,
-					accessKeyId: customBucket.accessKeyId,
-					secretAccessKey: customBucket.secretAccessKey,
-				}
-			: null;
-
-		if (
-			!customBucket ||
-			!s3Config ||
-			customBucket.bucketName !== serverEnv().CAP_AWS_BUCKET
-		) {
-			const distributionId = serverEnv().CAP_CLOUDFRONT_DISTRIBUTION_ID;
-			if (distributionId) {
-				const cloudfront = new CloudFrontClient({
-					region: serverEnv().CAP_AWS_REGION || "us-east-1",
-					credentials: await runPromise(
-						Effect.map(AwsCredentials, (c) => c.credentials),
-					),
-				});
-
-				const pathToInvalidate = "/" + fileKey;
-
-				try {
-					await cloudfront.send(
-						new CreateInvalidationCommand({
-							DistributionId: distributionId,
-							InvalidationBatch: {
-								CallerReference: `${Date.now()}`,
-								Paths: {
-									Quantity: 1,
-									Items: [pathToInvalidate],
-								},
-							},
-						}),
-					);
-				} catch (error) {
-					console.error("Failed to create CloudFront invalidation:", error);
-				}
-			}
-		}
+		// Cloudinary handles CDN automatically, no need for CloudFront invalidation
 
 		const contentType = fileKey.endsWith(".aac")
 			? "audio/aac"
@@ -108,7 +62,7 @@ async function getVideoUploadPresignedUrl({
 		};
 
 		const presignedPostData = await Effect.gen(function* () {
-			const [bucket] = yield* S3Buckets.getBucketAccess(
+			const [bucket] = yield* CloudinaryBuckets.getBucketAccess(
 				Option.fromNullable(customBucket?.id),
 			);
 

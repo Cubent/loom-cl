@@ -33,16 +33,18 @@ export async function checkAndMarkUserSignedUpTracked(): Promise<{
 			return { shouldTrack: false };
 		}
 
-		const [result] = await db()
+		const result = await db()
 			.update(users)
 			.set({
-				preferences: sql`JSON_SET(COALESCE(${users.preferences}, JSON_OBJECT()), '$.trackedEvents.user_signed_up', true)`,
+				preferences: sql`COALESCE(${users.preferences}, '{}'::jsonb) || jsonb_build_object('trackedEvents', COALESCE(${users.preferences}->'trackedEvents', '{}'::jsonb) || jsonb_build_object('user_signed_up', true))`,
 			})
 			.where(
-				sql`(${users.id} = ${currentUser.id}) AND (${users.created_at} >= CURRENT_DATE()) AND JSON_CONTAINS(COALESCE(${users.preferences}, JSON_OBJECT()), CAST(true AS JSON), '$.trackedEvents.user_signed_up') = 0`,
+				sql`(${users.id} = ${currentUser.id}) AND (${users.created_at} >= CURRENT_DATE()) AND (COALESCE(${users.preferences}->'trackedEvents'->>'user_signed_up', 'false') = 'false')`,
 			);
 
-		return { shouldTrack: result.affectedRows > 0 };
+		// In Postgres with Drizzle, result is an array with affectedRows property
+		const rowCount = Array.isArray(result) ? (result[0] as any)?.affectedRows ?? 0 : (result as any)?.affectedRows ?? 0;
+		return { shouldTrack: rowCount > 0 };
 	} catch {
 		return { shouldTrack: false };
 	}

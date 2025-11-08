@@ -2,16 +2,29 @@ import { ImageUpload } from "@cap/web-domain";
 import { Effect, Option } from "effect";
 
 import { Database, type DbClient } from "../Database";
-import { S3Buckets } from "../S3Buckets";
+import { CloudinaryBuckets } from "../CloudinaryBuckets/index.ts";
 
 export class ImageUploads extends Effect.Service<ImageUploads>()(
 	"ImageUploads",
 	{
 		effect: Effect.gen(function* () {
-			const s3Buckets = yield* S3Buckets;
+			console.log("ImageUploads: Starting initialization...");
+			const s3Buckets = yield* CloudinaryBuckets;
+			console.log("ImageUploads: Got CloudinaryBuckets");
 			const db = yield* Database;
+			console.log("ImageUploads: Got Database");
 
-			const [s3] = yield* s3Buckets.getBucketAccess();
+			console.log("ImageUploads: Calling getBucketAccess()...");
+			const bucketAccessResult = yield* s3Buckets.getBucketAccess().pipe(
+				Effect.catchAll((error) => {
+					console.error("ImageUploads: getBucketAccess failed:", error);
+					return Effect.fail(error instanceof Error ? error : new Error(String(error)));
+				}),
+			);
+			console.log("ImageUploads: Got bucket access result");
+			// getBucketAccess returns the bucket access object directly, not an array
+			const s3 = Array.isArray(bucketAccessResult) ? bucketAccessResult[0] : bucketAccessResult;
+			console.log("ImageUploads: Got bucket access");
 
 			const applyUpdate = Effect.fn("ImageUploads.applyUpdate")(
 				function* (args: {
@@ -62,6 +75,6 @@ export class ImageUploads extends Effect.Service<ImageUploads>()(
 
 			return { applyUpdate, resolveImageUrl };
 		}),
-		dependencies: [S3Buckets.Default, Database.Default],
+		dependencies: [CloudinaryBuckets.Default, Database.Default],
 	},
 ) {}

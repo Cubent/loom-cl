@@ -1,7 +1,7 @@
 import { db } from "@cap/database";
 import { organizations, s3Buckets, videos } from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
-import { S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import type { Video } from "@cap/web-domain";
 import { createClient } from "@deepgram/sdk";
 import { eq } from "drizzle-orm";
@@ -101,7 +101,7 @@ export async function transcribeVideo(
 		.set({ transcriptionStatus: "PROCESSING" })
 		.where(eq(videos.id, videoId));
 
-	const [bucket] = await S3Buckets.getBucketAccess(
+	const [bucket] = await CloudinaryBuckets.getBucketAccess(
 		Option.fromNullable(result.bucket?.id),
 	).pipe(runPromise);
 

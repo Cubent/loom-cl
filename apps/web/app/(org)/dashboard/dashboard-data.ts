@@ -147,10 +147,10 @@ export async function getDashboardData(user: typeof userSelectProps) {
 								createdById: spaces.createdById,
 								iconUrl: spaces.iconUrl,
 								memberCount: sql<number>`(
-          SELECT COUNT(*) FROM space_members WHERE space_members.spaceId = spaces.id
+          SELECT COUNT(*) FROM space_members WHERE "space_members"."spaceId" = "spaces"."id"
         )`,
 								videoCount: sql<number>`(
-          SELECT COUNT(*) FROM space_videos WHERE space_videos.spaceId = spaces.id
+          SELECT COUNT(*) FROM space_videos WHERE "space_videos"."spaceId" = "spaces"."id"
         )`,
 							})
 							.from(spaces)
@@ -165,8 +165,8 @@ export async function getDashboardData(user: typeof userSelectProps) {
 										// User is a member of the space
 										sql`EXISTS (
           SELECT 1 FROM space_members 
-          WHERE space_members.spaceId = spaces.id 
-          AND space_members.userId = ${user.id}
+          WHERE "space_members"."spaceId" = "spaces"."id" 
+          AND "space_members"."userId" = ${user.id}
         )`,
 									),
 								),

@@ -22,7 +22,7 @@ const DOCKER_S3_ENVS = {
 };
 
 const DOCKER_DB_ENVS = {
-	url: "mysql://root:@localhost:3306/planetscale",
+	url: "postgresql://postgres:postgres@localhost:5432/cap",
 };
 
 async function main() {
@@ -73,7 +73,7 @@ async function main() {
 		envs.DATABASE_ENCRYPTION_KEY = allEnvs.DATABASE_ENCRYPTION_KEY;
 
 		usingDockerEnvironment = await confirm({
-			message: "Will you be running S3 and MySQL via Docker?",
+			message: "Will you be running S3 and Postgres via Docker?",
 		});
 
 		if (isCancel(usingDockerEnvironment)) return;
@@ -84,56 +84,51 @@ async function main() {
 				DATABASE_URL: () =>
 					text({
 						message:
-							"DATABASE_URL - Can be plain mysql:// or a PlanetScale https:// URL",
+							"DATABASE_URL - Can be a postgresql:// URL or a Neon connection string",
 						placeholder:
 							allEnvs.DATABASE_URL ??
-							"mysql://root:@localhost:3306/planetscale",
+							"postgresql://postgres:postgres@localhost:5432/cap",
 						defaultValue:
 							allEnvs.DATABASE_URL ??
-							"mysql://root:@localhost:3306/planetscale",
+							"postgresql://postgres:postgres@localhost:5432/cap",
 					}),
 			});
 
 			envs.DATABASE_URL = dbValues.DATABASE_URL;
 
-			log.info("S3 Envs");
+			log.info("Cloudinary Envs");
 
-			const s3Values = await group(
+			const cloudinaryValues = await group(
 				{
-					CAP_AWS_ACCESS_KEY: () =>
+					CLOUDINARY_CLOUD_NAME: () =>
 						text({
-							message: "CAP_AWS_ACCESS_KEY",
-							placeholder: allEnvs.CAP_AWS_ACCESS_KEY,
-							defaultValue: allEnvs.CAP_AWS_ACCESS_KEY,
+							message: "CLOUDINARY_CLOUD_NAME",
+							placeholder: allEnvs.CLOUDINARY_CLOUD_NAME,
+							defaultValue: allEnvs.CLOUDINARY_CLOUD_NAME,
 						}),
-					CAP_AWS_SECRET_KEY: () =>
+					CLOUDINARY_API_KEY: () =>
 						text({
-							message: "CAP_AWS_SECRET_KEY",
-							placeholder: allEnvs.CAP_AWS_SECRET_KEY,
-							defaultValue: allEnvs.CAP_AWS_SECRET_KEY,
+							message: "CLOUDINARY_API_KEY",
+							placeholder: allEnvs.CLOUDINARY_API_KEY,
+							defaultValue: allEnvs.CLOUDINARY_API_KEY,
 						}),
-					CAP_AWS_BUCKET: () =>
+					CLOUDINARY_API_SECRET: () =>
 						text({
-							message: "CAP_AWS_BUCKET",
-							defaultValue: allEnvs.CAP_AWS_BUCKET,
-							placeholder: allEnvs.CAP_AWS_BUCKET,
+							message: "CLOUDINARY_API_SECRET",
+							placeholder: allEnvs.CLOUDINARY_API_SECRET,
+							defaultValue: allEnvs.CLOUDINARY_API_SECRET,
 						}),
-					CAP_AWS_BUCKET_URL: () => text({ message: "CAP_AWS_BUCKET_URL" }),
-					CAP_CLOUDFRONT_DISTRIBUTION_ID: () =>
-						text({ message: "CAP_CLOUDFRONT_DISTRIBUTION_ID" }),
 				},
 				{ onCancel: () => process.exit(0) },
 			);
 
-			envs = { ...envs, ...s3Values };
+			envs = { ...envs, ...cloudinaryValues };
 		} else {
 			envs.DATABASE_URL = DOCKER_DB_ENVS.url;
 
-			envs.CAP_AWS_ACCESS_KEY = DOCKER_S3_ENVS.accessKey;
-			envs.CAP_AWS_SECRET_KEY = DOCKER_S3_ENVS.secretKey;
-			envs.CAP_AWS_BUCKET = DOCKER_S3_ENVS.bucket;
-			envs.CAP_AWS_REGION = DOCKER_S3_ENVS.region;
-			envs.CAP_AWS_ENDPOINT = DOCKER_S3_ENVS.endpoint;
+			// Note: Cloudinary doesn't need Docker setup
+			// Users should provide their Cloudinary credentials
+			log.warn("Cloudinary credentials must be provided manually");
 		}
 
 		envs.NEXT_PUBLIC_WEB_URL = envs.WEB_URL;

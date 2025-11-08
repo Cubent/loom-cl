@@ -3,7 +3,7 @@
 import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { spaces } from "@cap/database/schema";
-import { S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import { ImageUpload, type Space } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Option } from "effect";
@@ -59,7 +59,7 @@ export async function uploadSpaceIcon(
 		}/spaces/${spaceId}/icon-${Date.now()}.${fileExtension}`,
 	);
 
-	const [bucket] = await S3Buckets.getBucketAccess(Option.none()).pipe(
+	const [bucket] = await CloudinaryBuckets.getBucketAccess(Option.none()).pipe(
 		runPromise,
 	);
 

@@ -4,7 +4,7 @@ import { db } from "@cap/database";
 import { getCurrentUser } from "@cap/database/auth/session";
 import { nanoId } from "@cap/database/helpers";
 import { spaceMembers, spaces } from "@cap/database/schema";
-import { S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import {
 	Space,
 	SpaceMemberId,
@@ -88,7 +88,7 @@ export async function updateSpace(formData: FormData) {
 			if (key) {
 				try {
 					await Effect.gen(function* () {
-						const [bucket] = yield* S3Buckets.getBucketAccess(Option.none());
+						const [bucket] = yield* CloudinaryBuckets.getBucketAccess(Option.none());
 						yield* bucket.deleteObject(key);
 					}).pipe(runPromise);
 				} catch (e) {

@@ -185,14 +185,14 @@ export const getVideosByFolderId = Effect.fn(function* (
 					}[]
 				>`
         COALESCE(
-          JSON_ARRAYAGG(
-            JSON_OBJECT(
+          json_agg(
+            json_build_object(
               'id', ${organizations.id},
               'name', ${organizations.name},
               'iconUrl', ${organizations.iconUrl}
             )
           ),
-          JSON_ARRAY()
+          '[]'::json
         )
       `,
 
@@ -233,7 +233,11 @@ export const getVideosByFolderId = Effect.fn(function* (
 				videos.createdAt,
 				videos.public,
 				videos.metadata,
+				videos.duration,
 				users.name,
+				videos.effectiveCreatedAt,
+				videos.password,
+				videoUploads.videoId,
 			)
 			.orderBy(desc(videos.effectiveCreatedAt)),
 	);
@@ -310,7 +314,7 @@ export const getChildFolders = Effect.fn(function* (
 				parentId: folders.parentId,
 				organizationId: folders.organizationId,
 				videoCount: sql<number>`(
-        	SELECT COUNT(*) FROM videos WHERE videos.folderId = folders.id
+        	SELECT COUNT(*) FROM videos WHERE "videos"."folderId" = "folders"."id"
 	      )`,
 			})
 			.from(folders)

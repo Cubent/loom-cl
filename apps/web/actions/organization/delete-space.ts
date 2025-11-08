@@ -8,7 +8,7 @@ import {
 	spaces,
 	spaceVideos,
 } from "@cap/database/schema";
-import { S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import type { Space } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
@@ -71,7 +71,7 @@ export async function deleteSpace(
 		// 4. Delete space icons from S3
 		try {
 			await Effect.gen(function* () {
-				const [bucket] = yield* S3Buckets.getBucketAccess(Option.none());
+				const [bucket] = yield* CloudinaryBuckets.getBucketAccess(Option.none());
 
 				const listedObjects = yield* bucket.listObjects({
 					prefix: `organizations/${user.activeOrganizationId}/spaces/${spaceId}/`,

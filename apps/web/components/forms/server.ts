@@ -8,7 +8,7 @@ import {
 	organizations,
 	users,
 } from "@cap/database/schema";
-import { S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import { ImageUpload, Organisation, type User } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
@@ -69,7 +69,7 @@ export async function createOrganization(formData: FormData) {
 
 		try {
 			await Effect.gen(function* () {
-				const [bucket] = yield* S3Buckets.getBucketAccess(Option.none());
+				const [bucket] = yield* CloudinaryBuckets.getBucketAccess(Option.none());
 
 				yield* bucket.putObject(
 					fileKey,

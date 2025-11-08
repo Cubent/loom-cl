@@ -12,7 +12,7 @@ import {
 } from "@cap/database/schema";
 import { buildEnv, NODE_ENV, serverEnv } from "@cap/env";
 import { dub, userIsPro } from "@cap/utils";
-import { S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import { Organisation, Video } from "@cap/web-domain";
 import { zValidator } from "@hono/zod-validator";
 import { and, count, eq, lte, or } from "drizzle-orm";
@@ -283,7 +283,7 @@ app.delete(
 				.where(and(eq(videos.id, videoId), eq(videos.ownerId, user.id)));
 
 			await Effect.gen(function* () {
-				const [bucket] = yield* S3Buckets.getBucketAccess(
+				const [bucket] = yield* CloudinaryBuckets.getBucketAccess(
 					Option.fromNullable(result.bucket?.id),
 				);
 

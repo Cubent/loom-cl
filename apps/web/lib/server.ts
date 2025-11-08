@@ -3,14 +3,14 @@ import "server-only";
 import { decrypt } from "@cap/database/crypto";
 import { serverEnv } from "@cap/env";
 import {
-	AwsCredentials,
+	CloudinaryBuckets,
+	CloudinaryService,
 	Database,
 	Folders,
 	HttpAuthMiddlewareLive,
 	ImageUploads,
 	Organisations,
 	OrganisationsPolicy,
-	S3Buckets,
 	Spaces,
 	SpacesPolicy,
 	Users,
@@ -109,7 +109,7 @@ const WorkflowRpcLive = Layer.unwrapScoped(
 );
 
 export const Dependencies = Layer.mergeAll(
-	S3Buckets.Default,
+	CloudinaryBuckets.Default,
 	Videos.Default,
 	VideosPolicy.Default,
 	VideosRepo.Default,
@@ -119,7 +119,7 @@ export const Dependencies = Layer.mergeAll(
 	Spaces.Default,
 	Users.Default,
 	Organisations.Default,
-	AwsCredentials.Default,
+	CloudinaryService.Default,
 	ImageUploads.Default,
 	WorkflowRpcLive,
 	layerTracer,
@@ -143,7 +143,22 @@ export const runPromise = <A, E>(
 		effect.pipe(Effect.provide(CookiePasswordAttachmentLive)),
 	).then((res) => {
 		if (Exit.isFailure(res)) {
-			if (Cause.isDieType(res.cause)) throw res.cause.defect;
+			if (Cause.isDieType(res.cause)) {
+				const defect = res.cause.defect;
+				console.error("Effect Die defect:", defect);
+				console.error("Defect type:", typeof defect);
+				console.error("Defect constructor:", defect?.constructor?.name);
+				if (defect instanceof Error) {
+					console.error("Error message:", defect.message);
+					console.error("Error stack:", defect.stack);
+				}
+				try {
+					console.error("Defect JSON:", JSON.stringify(defect, null, 2));
+				} catch (e) {
+					console.error("Could not stringify defect:", e);
+				}
+				throw defect;
+			}
 			throw res;
 		}
 

@@ -5,7 +5,7 @@ import * as Dz from "drizzle-orm";
 import { Array, Effect, Option, pipe } from "effect";
 
 import { Database } from "../Database.ts";
-import { S3Buckets } from "../S3Buckets/index.ts";
+import { CloudinaryBuckets } from "../CloudinaryBuckets/index.ts";
 import { VideosPolicy } from "./VideosPolicy.ts";
 import { VideosRepo } from "./VideosRepo.ts";
 
@@ -14,7 +14,7 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 		const db = yield* Database;
 		const repo = yield* VideosRepo;
 		const policy = yield* VideosPolicy;
-		const s3Buckets = yield* S3Buckets;
+		const s3Buckets = yield* CloudinaryBuckets;
 
 		const getByIdForViewing = (id: Video.VideoId) =>
 			repo
@@ -148,7 +148,7 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 						Policy.withPublicPolicy(policy.canView(videoId)),
 					);
 
-				const [bucket] = yield* S3Buckets.getBucketAccess(video.bucketId);
+				const [bucket] = yield* CloudinaryBuckets.getBucketAccess(video.bucketId);
 
 				return yield* Option.fromNullable(Video.Video.getSource(video)).pipe(
 					Option.filter((v) => v._tag === "Mp4Source"),
@@ -174,7 +174,7 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 				return yield* videoOpt.pipe(
 					Effect.transposeMapOption(
 						Effect.fn(function* ([video]) {
-							const [bucket] = yield* S3Buckets.getBucketAccess(video.bucketId);
+							const [bucket] = yield* CloudinaryBuckets.getBucketAccess(video.bucketId);
 
 							const listResponse = yield* bucket.listObjects({
 								prefix: `${video.ownerId}/${video.id}/`,
@@ -225,6 +225,6 @@ export class Videos extends Effect.Service<Videos>()("Videos", {
 		VideosPolicy.Default,
 		VideosRepo.Default,
 		Database.Default,
-		S3Buckets.Default,
+		CloudinaryBuckets.Default,
 	],
 }) {}

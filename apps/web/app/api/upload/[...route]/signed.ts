@@ -1,12 +1,8 @@
-import {
-	CloudFrontClient,
-	CreateInvalidationCommand,
-} from "@aws-sdk/client-cloudfront";
-import type { PresignedPost } from "@aws-sdk/s3-presigned-post";
+// Cloudinary doesn't need presigned posts, but we'll keep the interface for compatibility
 import { db, updateIfDefined } from "@cap/database";
 import * as Db from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
-import { AwsCredentials, S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import { Video } from "@cap/web-domain";
 import { zValidator } from "@hono/zod-validator";
 import { and, eq } from "drizzle-orm";
@@ -54,57 +50,7 @@ app.post(
 		const fileKey = parseVideoIdOrFileKey(user.id, body);
 
 		try {
-			const [customBucket] = await db()
-				.select()
-				.from(Db.s3Buckets)
-				.where(eq(Db.s3Buckets.ownerId, user.id));
-
-			const s3Config = customBucket
-				? {
-						endpoint: customBucket.endpoint || undefined,
-						region: customBucket.region,
-						accessKeyId: customBucket.accessKeyId,
-						secretAccessKey: customBucket.secretAccessKey,
-					}
-				: null;
-
-			if (
-				!customBucket ||
-				!s3Config ||
-				customBucket.bucketName !== serverEnv().CAP_AWS_BUCKET
-			) {
-				const distributionId = serverEnv().CAP_CLOUDFRONT_DISTRIBUTION_ID;
-				if (distributionId) {
-					console.log("Creating CloudFront invalidation for", fileKey);
-
-					const cloudfront = new CloudFrontClient({
-						region: serverEnv().CAP_AWS_REGION || "us-east-1",
-						credentials: await runPromise(
-							Effect.map(AwsCredentials, (c) => c.credentials),
-						),
-					});
-
-					const pathToInvalidate = "/" + fileKey;
-
-					try {
-						const invalidation = await cloudfront.send(
-							new CreateInvalidationCommand({
-								DistributionId: distributionId,
-								InvalidationBatch: {
-									CallerReference: `${Date.now()}`,
-									Paths: {
-										Quantity: 1,
-										Items: [pathToInvalidate],
-									},
-								},
-							}),
-						);
-						console.log("CloudFront invalidation created:", invalidation);
-					} catch (error) {
-						console.error("Failed to create CloudFront invalidation:", error);
-					}
-				}
-			}
+			// Cloudinary handles CDN automatically, no need for CloudFront invalidation
 
 			const contentType = fileKey.endsWith(".aac")
 				? "audio/aac"
@@ -118,10 +64,10 @@ app.post(
 								? "application/x-mpegURL"
 								: "video/mp2t";
 
-			let data: PresignedPost;
+			let data: { url: string; fields: Record<string, string> };
 
 			await Effect.gen(function* () {
-				const [bucket] = yield* S3Buckets.getBucketAccess(
+				const [bucket] = yield* CloudinaryBuckets.getBucketAccess(
 					Option.fromNullable(customBucket?.id),
 				);
 

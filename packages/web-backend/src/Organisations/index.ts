@@ -4,7 +4,7 @@ import * as Dz from "drizzle-orm";
 import { Array, Effect, Option } from "effect";
 import { Database } from "../Database";
 import { ImageUploads } from "../ImageUploads";
-import { S3Buckets } from "../S3Buckets";
+import { CloudinaryBuckets } from "../CloudinaryBuckets/index.ts";
 import { OrganisationsPolicy } from "./OrganisationsPolicy";
 
 export class Organisations extends Effect.Service<Organisations>()(
@@ -93,7 +93,7 @@ export class Organisations extends Effect.Service<Organisations>()(
 		}),
 		dependencies: [
 			ImageUploads.Default,
-			S3Buckets.Default,
+			CloudinaryBuckets.Default,
 			Database.Default,
 			OrganisationsPolicy.Default,
 		],

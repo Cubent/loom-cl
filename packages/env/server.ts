@@ -13,7 +13,7 @@ function createServerEnv() {
 	return createEnv({
 		server: {
 			/// General configuration
-			DATABASE_URL: z.string().describe("MySQL database URL"),
+			DATABASE_URL: z.string().describe("PostgreSQL database URL (supports Neon connection strings)"),
 			WEB_URL: z
 				.string()
 				.describe("Public URL of the server eg. https://cap.so"),
@@ -30,37 +30,13 @@ function createServerEnv() {
 			RESEND_API_KEY: z.string().optional(),
 			RESEND_FROM_DOMAIN: z.string().optional(),
 
-			/// S3 configuration
-			// Though they are prefixed with `CAP_AWS`, these don't have to be
-			// for AWS, and can instead be for any S3-compatible service
-			CAP_AWS_BUCKET: z.string(),
-			CAP_AWS_REGION: z.string(),
-			CAP_AWS_ACCESS_KEY: z.string().optional(),
-			CAP_AWS_SECRET_KEY: z.string().optional(),
-			S3_PUBLIC_ENDPOINT: z
-				.string()
-				.optional()
-				.describe("Public endpoint for accessing S3"),
-			S3_INTERNAL_ENDPOINT: z
-				.string()
-				.optional()
-				.describe(
-					"Internal endpoint for accessing S3. This is useful if accessing S3 over public internet is more expensive than via your hosting environment's local network.",
-				),
-			S3_PATH_STYLE: boolString(true).describe(
-				"Whether the bucket should be accessed using path-style URLs (common for non-AWS providers, eg. '/{bucket}/{key}') or virtual-hosted-style URLs (eg. '{bucket}.s3.amazonaws.com/{key}').",
+			/// Cloudinary configuration
+			CLOUDINARY_CLOUD_NAME: z.string().optional().default("").describe("Cloudinary cloud name"),
+			CLOUDINARY_API_KEY: z.string().optional().default("").describe("Cloudinary API key"),
+			CLOUDINARY_API_SECRET: z.string().optional().default("").describe("Cloudinary API secret"),
+			CLOUDINARY_SECURE: boolString(true).describe(
+				"Whether to use HTTPS for Cloudinary URLs",
 			),
-
-			/// CloudFront configuration
-			// Configure these if you'd like to serve assets from the default bucket via CloudFront
-			// In this case, CAP_AWS_BUCKET_URL should be your CloudFront distribution's URL
-			CAP_AWS_BUCKET_URL: z
-				.string()
-				.optional()
-				.describe("Public URL of the S3 bucket"),
-			CAP_CLOUDFRONT_DISTRIBUTION_ID: z.string().optional(),
-			CLOUDFRONT_KEYPAIR_ID: z.string().optional(),
-			CLOUDFRONT_KEYPAIR_PRIVATE_KEY: z.string().optional(),
 
 			/// Google Auth
 			// Provide these to allow Google login

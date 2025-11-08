@@ -2,14 +2,8 @@
 // It is not suitable (a.k.a DEADLY) for serverless environments where the server will be restarted on each request.
 //
 
-import {
-	BucketAlreadyOwnedByYou,
-	CreateBucketCommand,
-	PutBucketPolicyCommand,
-	S3Client,
-} from "@aws-sdk/client-s3";
 import { migrateDb } from "@cap/database/migrate";
-import { buildEnv, serverEnv } from "@cap/env";
+import { buildEnv } from "@cap/env";
 
 export async function register() {
 	if (process.env.NEXT_PUBLIC_IS_CAP) return;
@@ -37,50 +31,12 @@ export async function register() {
 	};
 	// Add a timeout to trigger migrations after 5 seconds on server start
 	setTimeout(() => triggerMigrations(), 5000);
-	setTimeout(() => createS3Bucket(), 5000);
+	// Cloudinary doesn't need bucket creation - it's automatic
 }
 
 async function createS3Bucket() {
-	const s3Client = new S3Client({
-		endpoint: serverEnv().S3_INTERNAL_ENDPOINT,
-		region: serverEnv().CAP_AWS_REGION,
-		credentials: {
-			accessKeyId: serverEnv().CAP_AWS_ACCESS_KEY ?? "",
-			secretAccessKey: serverEnv().CAP_AWS_SECRET_KEY ?? "",
-		},
-		forcePathStyle: serverEnv().S3_PATH_STYLE,
-	});
-
-	await s3Client
-		.send(new CreateBucketCommand({ Bucket: serverEnv().CAP_AWS_BUCKET }))
-		.then(() => {
-			console.log("Created S3 bucket");
-			return s3Client.send(
-				new PutBucketPolicyCommand({
-					Bucket: serverEnv().CAP_AWS_BUCKET,
-					Policy: JSON.stringify({
-						Version: "2012-10-17",
-						Statement: [
-							{
-								Effect: "Allow",
-								Principal: "*",
-								Action: ["s3:GetObject"],
-								Resource: [`arn:aws:s3:::${serverEnv().CAP_AWS_BUCKET}/*`],
-							},
-						],
-					}),
-				}),
-			);
-		})
-		.then(() => {
-			console.log("Configured S3 buckeet");
-		})
-		.catch((e) => {
-			if (e instanceof BucketAlreadyOwnedByYou) {
-				console.log("Found existing S3 bucket");
-				return;
-			}
-		});
+	// Cloudinary doesn't need bucket creation - buckets are created automatically
+	console.log("Cloudinary doesn't require bucket setup - it's automatic");
 }
 
 async function runMigrations() {

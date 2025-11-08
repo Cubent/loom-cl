@@ -1,6 +1,6 @@
 import { db } from "@cap/database";
 import { s3Buckets, videos } from "@cap/database/schema";
-import { S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 	const prefix = `${query.video.ownerId}/${query.video.id}/`;
 
 	try {
-		const [bucket] = await S3Buckets.getBucketAccess(
+		const [bucket] = await CloudinaryBuckets.getBucketAccess(
 			Option.fromNullable(query.bucket?.id),
 		).pipe(runPromise);
 

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { db } from "@cap/database";
 import { DrizzleQueryError } from "drizzle-orm";
-import { migrate } from "drizzle-orm/mysql2/migrator";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 import { runOrgIdBackfill } from "./migrations/orgid_backfill.ts";
 
@@ -15,7 +15,7 @@ function errorIsOrgIdMigration(e: unknown): e is DrizzleQueryError {
 	return (
 		e instanceof DrizzleQueryError &&
 		e.query ===
-			"ALTER TABLE `videos` MODIFY COLUMN `orgId` varchar(15) NOT NULL;"
+			'ALTER TABLE "videos" ALTER COLUMN "orgId" SET NOT NULL;'
 	);
 }
 

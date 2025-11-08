@@ -1,17 +1,12 @@
-import {
-	CloudFrontClient,
-	CreateInvalidationCommand,
-} from "@aws-sdk/client-cloudfront";
 import { updateIfDefined } from "@cap/database";
 import * as Db from "@cap/database/schema";
 import { serverEnv } from "@cap/env";
 import {
-	AwsCredentials,
 	Database,
 	makeCurrentUser,
 	makeCurrentUserLayer,
 	provideOptionalAuth,
-	S3Buckets,
+	CloudinaryBuckets,
 	Videos,
 	VideosPolicy,
 	VideosRepo,
@@ -89,7 +84,7 @@ app.post(
 		try {
 			try {
 				const uploadId = await Effect.gen(function* () {
-					const [bucket] = yield* S3Buckets.getBucketAccessForUser(user.id);
+					const [bucket] = yield* CloudinaryBuckets.getBucketAccessForUser(user.id);
 
 					const finalContentType = contentType || "video/mp4";
 					console.log(
@@ -172,7 +167,7 @@ app.post(
 		try {
 			try {
 				const presignedUrl = await Effect.gen(function* () {
-					const [bucket] = yield* S3Buckets.getBucketAccessForUser(user.id);
+					const [bucket] = yield* CloudinaryBuckets.getBucketAccessForUser(user.id);
 
 					console.log(
 						`Getting presigned URL for part ${partNumber} of upload ${uploadId}`,
@@ -267,7 +262,7 @@ app.post(
 			const [video] = maybeVideo.value;
 
 			return yield* Effect.gen(function* () {
-				const [bucket, customBucket] = yield* S3Buckets.getBucketAccess(
+				const [bucket, customBucket] = yield* CloudinaryBuckets.getBucketAccess(
 					video.bucketId,
 				);
 
@@ -398,43 +393,7 @@ app.post(
 						),
 					);
 
-					if (Option.isNone(customBucket)) {
-						const distributionId = serverEnv().CAP_CLOUDFRONT_DISTRIBUTION_ID;
-						if (distributionId) {
-							const cloudfront = new CloudFrontClient({
-								region: serverEnv().CAP_AWS_REGION || "us-east-1",
-								credentials: yield* Effect.map(
-									AwsCredentials,
-									(c) => c.credentials,
-								),
-							});
-
-							const pathToInvalidate = "/" + fileKey;
-
-							yield* Effect.promise(() =>
-								cloudfront.send(
-									new CreateInvalidationCommand({
-										DistributionId: distributionId,
-										InvalidationBatch: {
-											CallerReference: `${Date.now()}`,
-											Paths: {
-												Quantity: 1,
-												Items: [pathToInvalidate],
-											},
-										},
-									}),
-								),
-							).pipe(
-								Effect.catchAll((e) =>
-									Effect.logError(
-										"Failed to create CloudFront invalidation:",
-										e,
-									),
-								),
-								Effect.withSpan("CloudFrontInvalidation"),
-							);
-						}
-					}
+					// Cloudinary handles CDN automatically, no CloudFront invalidation needed
 
 					return c.json({
 						location: result.Location,

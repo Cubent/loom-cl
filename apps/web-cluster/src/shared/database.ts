@@ -1,11 +1,11 @@
-import { MysqlClient } from "@effect/sql-mysql2";
+import { PgClient } from "@effect/sql-pg";
 import { Config, Effect, Layer, Option } from "effect";
 
 export const DatabaseLive = Layer.unwrapEffect(
 	Effect.gen(function* () {
 		const url = yield* Config.redacted(Config.string("DATABASE_URL"));
 
-		return MysqlClient.layer({ url });
+		return PgClient.layer({ url });
 	}),
 );
 
@@ -19,11 +19,11 @@ export const ShardDatabaseLive = Layer.unwrapEffect(
 			onNone: () =>
 				Effect.gen(function* () {
 					return Layer.succeed(
-						MysqlClient.MysqlClient,
-						yield* MysqlClient.MysqlClient,
+						PgClient.PgClient,
+						yield* PgClient.PgClient,
 					);
 				}),
-			onSome: (url) => Effect.succeed(MysqlClient.layer({ url })),
+			onSome: (url) => Effect.succeed(PgClient.layer({ url })),
 		});
 	}),
 );

@@ -1,6 +1,6 @@
 import { db } from "@cap/database";
 import { s3Buckets, videos } from "@cap/database/schema";
-import { S3Buckets } from "@cap/web-backend";
+import { CloudinaryBuckets } from "@cap/web-backend";
 import type { Video } from "@cap/web-domain";
 import { eq } from "drizzle-orm";
 import { Effect, Option } from "effect";
@@ -65,7 +65,7 @@ export async function generateVideoOgImage(videoId: Video.VideoId) {
 
 	try {
 		await Effect.gen(function* () {
-			const [bucket] = yield* S3Buckets.getBucketAccess(
+			const [bucket] = yield* CloudinaryBuckets.getBucketAccess(
 				Option.fromNullable(videoData.bucket?.id),
 			);
 

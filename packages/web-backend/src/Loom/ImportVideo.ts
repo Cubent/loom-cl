@@ -3,13 +3,13 @@ import { Headers, HttpClient, HttpClientResponse } from "@effect/platform";
 import { Activity } from "@effect/workflow";
 import { Effect, Option, Schedule, Schema, Stream } from "effect";
 
-import { S3Buckets } from "../S3Buckets/index.ts";
+import { CloudinaryBuckets } from "../CloudinaryBuckets/index.ts";
 import { Videos } from "../Videos/index.ts";
 
 export const LoomImportVideoLive = Loom.ImportVideo.toLayer(
 	Effect.fn(function* (payload) {
 		const videos = yield* Videos;
-		const s3Buckets = yield* S3Buckets;
+		const s3Buckets = yield* CloudinaryBuckets;
 		const http = yield* HttpClient.HttpClient;
 
 		yield* Effect.log("starting loom import workflow");

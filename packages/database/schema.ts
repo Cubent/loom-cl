@@ -12,19 +12,18 @@ import { sql } from "drizzle-orm";
 import {
 	boolean,
 	customType,
-	datetime,
-	float,
+	doublePrecision,
 	index,
-	int,
-	json,
-	mysqlTable,
+	integer,
+	jsonb,
+	pgTable,
 	primaryKey,
 	text,
 	timestamp,
 	unique,
 	uniqueIndex,
 	varchar,
-} from "drizzle-orm/mysql-core";
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm/relations";
 
 import { nanoIdLength } from "./helpers.ts";
@@ -58,7 +57,7 @@ const encryptedTextNullable = customType<{ data: string; notNull: false }>({
 	},
 });
 
-export const users = mysqlTable(
+export const users = pgTable(
 	"users",
 	{
 		id: nanoId("id").notNull().primaryKey().$type<User.UserId>(),
@@ -80,7 +79,7 @@ export const users = mysqlTable(
 		stripeSubscriptionPriceId: varchar("stripeSubscriptionPriceId", {
 			length: 255,
 		}),
-		preferences: json("preferences")
+		preferences: jsonb("preferences")
 			.$type<{
 				notifications: {
 					pauseComments: boolean;
@@ -100,8 +99,8 @@ export const users = mysqlTable(
 			"activeOrganizationId",
 		).$type<Organisation.OrganisationId>(),
 		created_at: timestamp("created_at").notNull().defaultNow(),
-		updated_at: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
-		onboardingSteps: json("onboardingSteps").$type<{
+		updated_at: timestamp("updated_at").notNull().defaultNow(),
+		onboardingSteps: jsonb("onboardingSteps").$type<{
 			welcome?: boolean;
 			organizationSetup?: boolean;
 			customDomain?: boolean;
@@ -110,7 +109,7 @@ export const users = mysqlTable(
 		}>(),
 		onboarding_completed_at: timestamp("onboarding_completed_at"),
 		customBucket: nanoIdNullable("customBucket"),
-		inviteQuota: int("inviteQuota").notNull().default(1),
+		inviteQuota: integer("inviteQuota").notNull().default(1),
 		defaultOrgId:
 			nanoIdNullable("defaultOrgId").$type<Organisation.OrganisationId>(),
 	},
@@ -119,7 +118,7 @@ export const users = mysqlTable(
 	}),
 );
 
-export const accounts = mysqlTable(
+export const accounts = pgTable(
 	"accounts",
 	{
 		id: nanoId("id").notNull().primaryKey(),
@@ -128,49 +127,49 @@ export const accounts = mysqlTable(
 		provider: varchar("provider", { length: 255 }).notNull(),
 		providerAccountId: varchar("providerAccountId", { length: 255 }).notNull(),
 		access_token: text("access_token"),
-		expires_in: int("expires_in"),
+		expires_in: integer("expires_in"),
 		id_token: text("id_token"),
 		refresh_token: text("refresh_token"),
-		refresh_token_expires_in: int("refresh_token_expires_in"),
+		refresh_token_expires_in: integer("refresh_token_expires_in"),
 		scope: varchar("scope", { length: 255 }),
 		token_type: varchar("token_type", { length: 255 }),
 		createdAt: timestamp("createdAt").defaultNow().notNull(),
-		updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+		updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 		tempColumn: text("tempColumn"),
 	},
 	(table) => ({
-		userIdIndex: index("user_id_idx").on(table.userId),
+		userIdIndex: index("accounts_user_id_idx").on(table.userId),
 		providerAccountIdIndex: index("provider_account_id_idx").on(
 			table.providerAccountId,
 		),
 	}),
 );
 
-export const sessions = mysqlTable(
+export const sessions = pgTable(
 	"sessions",
 	{
 		id: nanoId("id").notNull().primaryKey(),
 		sessionToken: varchar("sessionToken", { length: 255 }).notNull(),
 		userId: nanoId("userId").notNull().$type<User.UserId>(),
-		expires: datetime("expires").notNull(),
+		expires: timestamp("expires").notNull(),
 		created_at: timestamp("created_at").notNull().defaultNow(),
-		updated_at: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+		updated_at: timestamp("updated_at").notNull().defaultNow(),
 	},
 	(table) => ({
 		sessionTokenIndex: uniqueIndex("session_token_idx").on(table.sessionToken),
-		userIdIndex: index("user_id_idx").on(table.userId),
+		userIdIndex: index("sessions_user_id_idx").on(table.userId),
 	}),
 );
 
-export const verificationTokens = mysqlTable("verification_tokens", {
+export const verificationTokens = pgTable("verification_tokens", {
 	identifier: varchar("identifier", { length: 255 }).primaryKey().notNull(),
 	token: varchar("token", { length: 255 }).unique().notNull(),
-	expires: datetime("expires").notNull(),
+	expires: timestamp("expires").notNull(),
 	created_at: timestamp("created_at").notNull().defaultNow(),
-	updated_at: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+	updated_at: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const organizations = mysqlTable(
+export const organizations = pgTable(
 	"organizations",
 	{
 		id: nanoId("id")
@@ -179,12 +178,12 @@ export const organizations = mysqlTable(
 			.$type<Organisation.OrganisationId>(),
 		name: varchar("name", { length: 255 }).notNull(),
 		ownerId: nanoId("ownerId").notNull().$type<User.UserId>(),
-		metadata: json("metadata"),
+		metadata: jsonb("metadata"),
 		tombstoneAt: timestamp("tombstoneAt"),
 		allowedEmailDomain: varchar("allowedEmailDomain", { length: 255 }),
 		customDomain: varchar("customDomain", { length: 255 }),
 		domainVerified: timestamp("domainVerified"),
-		settings: json("settings").$type<{
+		settings: jsonb("settings").$type<{
 			disableSummary?: boolean;
 			disableCaptions?: boolean;
 			disableChapters?: boolean;
@@ -196,7 +195,7 @@ export const organizations = mysqlTable(
 			length: 1024,
 		}).$type<ImageUpload.ImageUrlOrKey>(),
 		createdAt: timestamp("createdAt").notNull().defaultNow(),
-		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 		workosOrganizationId: varchar("workosOrganizationId", { length: 255 }),
 		workosConnectionId: varchar("workosConnectionId", { length: 255 }),
 	},
@@ -210,7 +209,7 @@ export const organizations = mysqlTable(
 );
 
 export type OrganisationMemberRole = "owner" | "member";
-export const organizationMembers = mysqlTable(
+export const organizationMembers = pgTable(
 	"organization_members",
 	{
 		id: nanoId("id").notNull().primaryKey(),
@@ -222,10 +221,10 @@ export const organizationMembers = mysqlTable(
 			.notNull()
 			.$type<OrganisationMemberRole>(),
 		createdAt: timestamp("createdAt").notNull().defaultNow(),
-		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 	},
 	(table) => ({
-		organizationIdIndex: index("organization_id_idx").on(table.organizationId),
+		organizationIdIndex: index("organization_members_organization_id_idx").on(table.organizationId),
 		userIdOrganizationIdIndex: index("user_id_organization_id_idx").on(
 			table.userId,
 			table.organizationId,
@@ -233,7 +232,7 @@ export const organizationMembers = mysqlTable(
 	}),
 );
 
-export const organizationInvites = mysqlTable(
+export const organizationInvites = pgTable(
 	"organization_invites",
 	{
 		id: nanoId("id").notNull().primaryKey(),
@@ -247,11 +246,11 @@ export const organizationInvites = mysqlTable(
 			.$type<OrganisationMemberRole>(),
 		status: varchar("status", { length: 255 }).notNull().default("pending"),
 		createdAt: timestamp("createdAt").notNull().defaultNow(),
-		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 		expiresAt: timestamp("expiresAt"),
 	},
 	(table) => ({
-		organizationIdIndex: index("organization_id_idx").on(table.organizationId),
+		organizationIdIndex: index("organization_invites_organization_id_idx").on(table.organizationId),
 		invitedEmailIndex: index("invited_email_idx").on(table.invitedEmail),
 		invitedByUserIdIndex: index("invited_by_user_id_idx").on(
 			table.invitedByUserId,
@@ -260,7 +259,7 @@ export const organizationInvites = mysqlTable(
 	}),
 );
 
-export const folders = mysqlTable(
+export const folders = pgTable(
 	"folders",
 	{
 		id: nanoId("id").notNull().primaryKey().$type<Folder.FolderId>(),
@@ -278,17 +277,17 @@ export const folders = mysqlTable(
 		parentId: nanoIdNullable("parentId").$type<Folder.FolderId>(),
 		spaceId: nanoIdNullable("spaceId").$type<Space.SpaceIdOrOrganisationId>(),
 		createdAt: timestamp("createdAt").notNull().defaultNow(),
-		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 	},
 	(table) => ({
-		organizationIdIndex: index("organization_id_idx").on(table.organizationId),
-		createdByIdIndex: index("created_by_id_idx").on(table.createdById),
+		organizationIdIndex: index("folders_organization_id_idx").on(table.organizationId),
+		createdByIdIndex: index("folders_created_by_id_idx").on(table.createdById),
 		parentIdIndex: index("parent_id_idx").on(table.parentId),
 		spaceIdIndex: index("space_id_idx").on(table.spaceId),
 	}),
 );
 
-export const videos = mysqlTable(
+export const videos = pgTable(
 	"videos",
 	{
 		id: nanoId("id").notNull().primaryKey().$type<Video.VideoId>(),
@@ -297,13 +296,13 @@ export const videos = mysqlTable(
 		name: varchar("name", { length: 255 }).notNull().default("My Video"),
 		bucket: nanoIdNullable("bucket").$type<S3Bucket.S3BucketId>(),
 		// in seconds
-		duration: float("duration"),
-		width: int("width"),
-		height: int("height"),
-		fps: int("fps"),
-		metadata: json("metadata").$type<VideoMetadata>(),
+		duration: doublePrecision("duration"),
+		width: integer("width"),
+		height: integer("height"),
+		fps: integer("fps"),
+		metadata: jsonb("metadata").$type<VideoMetadata>(),
 		public: boolean("public").notNull().default(true),
-		settings: json("settings").$type<{
+		settings: jsonb("settings").$type<{
 			disableSummary?: boolean;
 			disableCaptions?: boolean;
 			disableChapters?: boolean;
@@ -314,7 +313,7 @@ export const videos = mysqlTable(
 		transcriptionStatus: varchar("transcriptionStatus", { length: 255 }).$type<
 			"PROCESSING" | "COMPLETE" | "ERROR" | "SKIPPED"
 		>(),
-		source: json("source")
+		source: jsonb("source")
 			.$type<
 				{ type: "MediaConvert" } | { type: "local" } | { type: "desktopMP4" }
 			>()
@@ -322,13 +321,8 @@ export const videos = mysqlTable(
 			.default({ type: "MediaConvert" }),
 		folderId: nanoIdNullable("folderId").$type<Folder.FolderId>(),
 		createdAt: timestamp("createdAt").notNull().defaultNow(),
-		effectiveCreatedAt: datetime("effectiveCreatedAt").generatedAlwaysAs(
-			sql.raw(
-				"COALESCE(\n          STR_TO_DATE(JSON_UNQUOTE(JSON_EXTRACT(`metadata`, '$.customCreatedAt')), '%Y-%m-%dT%H:%i:%s.%fZ'),\n          STR_TO_DATE(JSON_UNQUOTE(JSON_EXTRACT(`metadata`, '$.customCreatedAt')), '%Y-%m-%dT%H:%i:%sZ'),\n          `createdAt`\n        )",
-			),
-			{ mode: "stored" },
-		),
-		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+		effectiveCreatedAt: timestamp("effectiveCreatedAt"),
+		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 		// PRIVATE
 		password: encryptedTextNullable("password"),
 		// LEGACY
@@ -346,7 +340,7 @@ export const videos = mysqlTable(
 	(table) => [
 		index("owner_id_idx").on(table.ownerId),
 		index("is_public_idx").on(table.public),
-		index("folder_id_idx").on(table.folderId),
+		index("videos_folder_id_idx").on(table.folderId),
 		index("org_owner_folder_idx").on(
 			table.orgId,
 			table.ownerId,
@@ -359,7 +353,7 @@ export const videos = mysqlTable(
 	],
 );
 
-export const sharedVideos = mysqlTable(
+export const sharedVideos = pgTable(
 	"shared_videos",
 	{
 		id: nanoId("id").notNull().primaryKey(),
@@ -372,8 +366,8 @@ export const sharedVideos = mysqlTable(
 		sharedAt: timestamp("sharedAt").notNull().defaultNow(),
 	},
 	(table) => ({
-		folderIdIndex: index("folder_id_idx").on(table.folderId),
-		organizationIdIndex: index("organization_id_idx").on(table.organizationId),
+		folderIdIndex: index("shared_videos_folder_id_idx").on(table.folderId),
+		organizationIdIndex: index("shared_videos_organization_id_idx").on(table.organizationId),
 		sharedByUserIdIndex: index("shared_by_user_id_idx").on(
 			table.sharedByUserId,
 		),
@@ -388,17 +382,17 @@ export const sharedVideos = mysqlTable(
 	}),
 );
 
-export const comments = mysqlTable(
+export const comments = pgTable(
 	"comments",
 	{
 		id: nanoId("id").notNull().primaryKey().$type<Comment.CommentId>(),
-		type: varchar("type", { length: 6, enum: ["emoji", "text"] }).notNull(),
+		type: varchar("type", { length: 6 }).notNull(),
 		content: text("content").notNull(),
-		timestamp: float("timestamp"),
+		timestamp: doublePrecision("timestamp"),
 		authorId: nanoId("authorId").notNull().$type<User.UserId>(),
 		videoId: nanoId("videoId").notNull().$type<Video.VideoId>(),
 		createdAt: timestamp("createdAt").notNull().defaultNow(),
-		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 		parentCommentId:
 			nanoIdNullable("parentCommentId").$type<Comment.CommentId>(),
 	},
@@ -416,7 +410,7 @@ export const comments = mysqlTable(
 	}),
 );
 
-export const notifications = mysqlTable(
+export const notifications = pgTable(
 	"notifications",
 	{
 		id: nanoId("id").notNull().primaryKey(),
@@ -425,7 +419,7 @@ export const notifications = mysqlTable(
 		type: varchar("type", { length: 10 })
 			.notNull()
 			.$type<"view" | "comment" | "reply" | "reaction" /*| "mention"*/>(),
-		data: json("data")
+		data: jsonb("data")
 			.$type<{
 				videoId?: string;
 				authorId?: string;
@@ -454,7 +448,7 @@ export const notifications = mysqlTable(
 	}),
 );
 
-export const s3Buckets = mysqlTable("s3_buckets", {
+export const s3Buckets = pgTable("s3_buckets", {
 	id: nanoId("id").notNull().primaryKey().$type<S3Bucket.S3BucketId>(),
 	ownerId: nanoId("ownerId").notNull().$type<User.UserId>(),
 	// Use encryptedText for sensitive fields
@@ -477,7 +471,7 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 	}),
 }));
 
-export const authApiKeys = mysqlTable("auth_api_keys", {
+export const authApiKeys = pgTable("auth_api_keys", {
 	id: varchar("id", { length: 36 }).notNull().primaryKey(),
 	userId: nanoId("userId").notNull().$type<User.UserId>(),
 	createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -608,7 +602,7 @@ export const sharedVideosRelations = relations(sharedVideos, ({ one }) => ({
 	}),
 }));
 
-export const spaces = mysqlTable(
+export const spaces = pgTable(
 	"spaces",
 	{
 		id: nanoId("id")
@@ -626,18 +620,18 @@ export const spaces = mysqlTable(
 		}).$type<ImageUpload.ImageUrlOrKey>(),
 		description: varchar("description", { length: 1000 }),
 		createdAt: timestamp("createdAt").notNull().defaultNow(),
-		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
-		privacy: varchar("privacy", { length: 255, enum: ["Public", "Private"] })
+		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+		privacy: varchar("privacy", { length: 255 })
 			.notNull()
 			.default("Private"),
 	},
 	(table) => ({
-		organizationIdIndex: index("organization_id_idx").on(table.organizationId),
-		createdByIdIndex: index("created_by_id_idx").on(table.createdById),
+		organizationIdIndex: index("spaces_organization_id_idx").on(table.organizationId),
+		createdByIdIndex: index("spaces_created_by_id_idx").on(table.createdById),
 	}),
 );
 
-export const spaceMembers = mysqlTable(
+export const spaceMembers = pgTable(
 	"space_members",
 	{
 		id: nanoId("id").notNull().primaryKey(),
@@ -648,10 +642,10 @@ export const spaceMembers = mysqlTable(
 			.default("member")
 			.$type<"member" | "Admin">(),
 		createdAt: timestamp("createdAt").notNull().defaultNow(),
-		updatedAt: timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+		updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 	},
 	(table) => ({
-		userIdIndex: index("user_id_idx").on(table.userId),
+		userIdIndex: index("space_members_user_id_idx").on(table.userId),
 		spaceIdUserIdUnique: unique("space_id_user_id_unique").on(
 			table.spaceId,
 			table.userId,
@@ -659,7 +653,7 @@ export const spaceMembers = mysqlTable(
 	}),
 );
 
-export const spaceVideos = mysqlTable(
+export const spaceVideos = pgTable(
 	"space_videos",
 	{
 		id: nanoId("id").notNull().primaryKey(),
@@ -670,7 +664,7 @@ export const spaceVideos = mysqlTable(
 		addedAt: timestamp("addedAt").notNull().defaultNow(),
 	},
 	(table) => ({
-		folderIdIndex: index("folder_id_idx").on(table.folderId),
+		folderIdIndex: index("space_videos_folder_id_idx").on(table.folderId),
 		videoIdIndex: index("video_id_idx").on(table.videoId),
 		addedByIdIndex: index("added_by_id_idx").on(table.addedById),
 		spaceIdVideoIdIndex: index("space_id_video_id_idx").on(
@@ -741,23 +735,23 @@ export const foldersRelations = relations(folders, ({ one, many }) => ({
 	videos: many(videos),
 }));
 
-export const videoUploads = mysqlTable("video_uploads", {
+export const videoUploads = pgTable("video_uploads", {
 	videoId: nanoId("video_id").primaryKey().notNull().$type<Video.VideoId>(),
-	uploaded: int("uploaded").notNull().default(0),
-	total: int("total").notNull().default(0),
+	uploaded: integer("uploaded").notNull().default(0),
+	total: integer("total").notNull().default(0),
 	startedAt: timestamp("started_at").notNull().defaultNow(),
 	updatedAt: timestamp("updated_at").notNull().defaultNow(),
-	mode: varchar("mode", { length: 255, enum: ["singlepart", "multipart"] }),
+	mode: varchar("mode", { length: 255 }),
 });
 
-export const importedVideos = mysqlTable(
+export const importedVideos = pgTable(
 	"imported_videos",
 	{
 		id: nanoId("id").notNull(),
 		orgId: nanoIdNullable("orgId")
 			.notNull()
 			.$type<Organisation.OrganisationId>(),
-		source: varchar("source", { length: 255, enum: ["loom"] }).notNull(),
+		source: varchar("source", { length: 255 }).notNull(),
 		sourceId: varchar("source_id", { length: 255 }).notNull(),
 	},
 	(table) => [

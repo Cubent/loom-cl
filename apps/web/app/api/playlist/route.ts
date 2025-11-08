@@ -1,5 +1,5 @@
 import { serverEnv } from "@cap/env";
-import { provideOptionalAuth, S3Buckets, Videos } from "@cap/web-backend";
+import { provideOptionalAuth, CloudinaryBuckets, Videos } from "@cap/web-backend";
 import { Video } from "@cap/web-domain";
 import {
 	HttpApi,
@@ -42,7 +42,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
 	Layer.provide(
 		HttpApiBuilder.group(Api, "root", (handlers) =>
 			Effect.gen(function* () {
-				const s3Buckets = yield* S3Buckets;
+				const s3Buckets = yield* CloudinaryBuckets;
 				const videos = yield* Videos;
 
 				return handlers.handle("getVideoSrc", ({ urlParams }) =>
@@ -68,7 +68,7 @@ const ApiLive = HttpApiBuilder.api(Api).pipe(
 							S3Error: () => new HttpApiError.InternalServerError(),
 							UnknownException: () => new HttpApiError.InternalServerError(),
 						}),
-						Effect.provideService(S3Buckets, s3Buckets),
+						Effect.provideService(CloudinaryBuckets, s3Buckets),
 					),
 				);
 			}),
@@ -81,7 +81,7 @@ const getPlaylistResponse = (
 	urlParams: (typeof GetPlaylistParams)["Type"],
 ) =>
 	Effect.gen(function* () {
-		const [s3, customBucket] = yield* S3Buckets.getBucketAccess(video.bucketId);
+		const [s3, customBucket] = yield* CloudinaryBuckets.getBucketAccess(video.bucketId);
 
 		if (Option.isNone(customBucket)) {
 			let redirect = `${video.ownerId}/${video.id}/combined-source/stream.m3u8`;

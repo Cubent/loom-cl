@@ -153,16 +153,26 @@ export function DrizzleAdapter(db: MySql2Database): Adapter {
 			return row ?? null;
 		},
 		async getUserByEmail(email) {
-			const rows = await db
-				.select()
-				.from(users)
-				.where(eq(users.email, email))
-				.limit(1)
-				.catch((e) => {
-					throw e;
+			try {
+				const rows = await db
+					.select()
+					.from(users)
+					.where(eq(users.email, email))
+					.limit(1);
+				const row = rows[0];
+				return row ?? null;
+			} catch (error) {
+				console.error("❌ Database query error in getUserByEmail:", error);
+				console.error("Error details:", {
+					message: error instanceof Error ? error.message : String(error),
+					stack: error instanceof Error ? error.stack : undefined,
+					code: (error as any)?.code,
+					detail: (error as any)?.detail,
+					hint: (error as any)?.hint,
+					name: (error as any)?.name,
 				});
-			const row = rows[0];
-			return row ?? null;
+				throw error;
+			}
 		},
 		async getUserByAccount({ providerAccountId, provider }) {
 			const rows = await db
