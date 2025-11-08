@@ -28,7 +28,8 @@
 			"@/lib/*": ["lib/*"],
 			"@/actions/*": ["actions/*"],
 			"@/data/*": ["data/*"],
-			"@/services": ["services"]
+			"@/services": ["services"],
+			"~/*": ["./*"]
 		},
 		"types": ["node"]
 	},

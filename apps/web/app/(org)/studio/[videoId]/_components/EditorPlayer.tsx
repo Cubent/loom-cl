@@ -1,8 +1,287 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { useEditorContext, FPS, OUTPUT_SIZE } from "./context/EditorContext";
+import { ToggleButton as KToggleButton } from "~/components/kobalte-compat";
+import { cx } from "cva";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import Tooltip from "~/components/Tooltip";
+import AspectRatioSelect from "./AspectRatioSelect";
+import { FPS, OUTPUT_SIZE, useEditorContext } from "./context/EditorContext";
+import { EditorButton, Slider } from "./ui";
+import { useEditorShortcuts } from "./useEditorShortcuts";
+import { formatTime } from "./utils";
+import { Crop, SkipBack, Play, Pause, SkipForward, Scissors, ZoomOut, ZoomIn } from "lucide-react";
 
+export function EditorPlayer() {
+	const {
+		project,
+		videoData,
+		videoUrl,
+		setDialog,
+		totalDuration,
+		editorState,
+		setEditorState,
+		zoomOutLimit,
+	} = useEditorContext();
+
+	const isAtEnd = useMemo(() => {
+		return totalDuration > 0 && totalDuration - editorState.playbackTime <= 0.1;
+	}, [totalDuration, editorState.playbackTime]);
+
+	const cropDialogHandler = useCallback(() => {
+		if (!videoData) return;
+		setDialog({
+			open: true,
+			type: "crop",
+			position: {
+				...(project.background.crop?.position ?? { x: 0, y: 0 }),
+			},
+			size: {
+				...(project.background.crop?.size ?? {
+					x: videoData.width,
+					y: videoData.height,
+				}),
+			},
+		});
+		setEditorState((prev) => ({ ...prev, playing: false }));
+	}, [videoData, project, setDialog, setEditorState]);
+
+	useEffect(() => {
+		if (isAtEnd && editorState.playing) {
+			setEditorState((prev) => ({ ...prev, playing: false }));
+		}
+	}, [isAtEnd, editorState.playing, setEditorState]);
+
+	const handlePlayPauseClick = useCallback(() => {
+		if (isAtEnd) {
+			setEditorState((prev) => ({
+				...prev,
+				playbackTime: 0,
+				playing: true,
+				previewTime: null,
+			}));
+		} else if (editorState.playing) {
+			setEditorState((prev) => ({ ...prev, playing: false }));
+		} else {
+			setEditorState((prev) => ({
+				...prev,
+				playing: true,
+				previewTime: null,
+			}));
+		}
+	}, [isAtEnd, editorState.playing, setEditorState]);
+
+	const updateZoom = useCallback(
+		(newZoom: number, origin: number) => {
+			const currentZoom = editorState.timeline.transform.zoom;
+			const currentPosition = editorState.timeline.transform.position;
+			const zoom = Math.max(Math.min(newZoom, zoomOutLimit), 3);
+			const visibleOrigin = origin - currentPosition;
+			const originPercentage = Math.min(1, visibleOrigin / currentZoom);
+			const newVisibleOrigin = zoom * originPercentage;
+			const newPosition = origin - newVisibleOrigin;
+			setEditorState((prev) => ({
+				...prev,
+				timeline: {
+					...prev.timeline,
+					transform: {
+						...prev.timeline.transform,
+						zoom,
+						position: Math.min(
+							Math.max(newPosition, 0),
+							Math.max(zoomOutLimit, totalDuration) + 4 - zoom,
+						),
+					},
+				},
+			}));
+		},
+		[editorState.timeline.transform, zoomOutLimit, totalDuration, setEditorState],
+	);
+
+	// Register keyboard shortcuts
+	useEditorShortcuts(
+		() => {
+			const el = document.activeElement;
+			if (!el) return true;
+			const tagName = el.tagName.toLowerCase();
+			const isContentEditable = el.getAttribute("contenteditable") === "true";
+			return !(tagName === "input" || tagName === "textarea" || isContentEditable);
+		},
+		[
+			{
+				combo: "S",
+				handler: () => {
+					setEditorState((prev) => ({
+						...prev,
+						timeline: {
+							...prev.timeline,
+							interactMode: prev.timeline.interactMode === "split" ? "seek" : "split",
+						},
+					}));
+				},
+			},
+			{
+				combo: "Mod+=",
+				handler: () => {
+					updateZoom(editorState.timeline.transform.zoom / 1.1, editorState.playbackTime);
+				},
+			},
+			{
+				combo: "Mod+-",
+				handler: () => {
+					updateZoom(editorState.timeline.transform.zoom * 1.1, editorState.playbackTime);
+				},
+			},
+			{
+				combo: "Space",
+				handler: () => {
+					const prevTime = editorState.previewTime;
+					if (!editorState.playing && prevTime !== null) {
+						setEditorState((prev) => ({ ...prev, playbackTime: prevTime }));
+					}
+					handlePlayPauseClick();
+				},
+			},
+		],
+	);
+
+	return (
+		<div className="flex flex-col flex-1 rounded-xl border bg-gray-1 dark:bg-gray-2 border-gray-3">
+			<div className="flex gap-3 justify-center p-3">
+				<AspectRatioSelect />
+				<EditorButton
+					tooltipText="Crop Video"
+					onClick={cropDialogHandler}
+					leftIcon={<Crop className="w-5 text-gray-12" />}
+				>
+					Crop
+				</EditorButton>
+			</div>
+			<PreviewCanvas />
+			<div className="flex overflow-hidden z-10 flex-row gap-3 justify-between items-center p-5">
+				<div className="flex-1">
+					<Time
+						className="text-gray-12"
+						seconds={Math.max(editorState.previewTime ?? editorState.playbackTime, 0)}
+					/>
+					<span className="text-gray-11 text-[0.875rem] tabular-nums"> / </span>
+					<Time seconds={totalDuration} />
+				</div>
+				<div className="flex flex-row items-center justify-center text-gray-11 gap-8 text-[0.875rem]">
+					<button
+						type="button"
+						className="transition-opacity hover:opacity-70 will-change-[opacity]"
+						onClick={() => {
+							setEditorState((prev) => ({
+								...prev,
+								playing: false,
+								playbackTime: 0,
+							}));
+						}}
+					>
+						<SkipBack className="text-gray-12 size-3" />
+					</button>
+					<Tooltip kbd={["Space"]} content="Play/Pause video">
+						<button
+							type="button"
+							onClick={handlePlayPauseClick}
+							className="flex justify-center items-center rounded-full border border-gray-300 transition-colors bg-gray-3 hover:bg-gray-4 hover:text-black size-9"
+						>
+							{!editorState.playing || isAtEnd ? (
+								<Play className="text-gray-12 size-3" />
+							) : (
+								<Pause className="text-gray-12 size-3" />
+							)}
+						</button>
+					</Tooltip>
+					<button
+						type="button"
+						className="transition-opacity hover:opacity-70 will-change-[opacity]"
+						onClick={() => {
+							setEditorState((prev) => ({
+								...prev,
+								playing: false,
+								playbackTime: totalDuration,
+							}));
+						}}
+					>
+						<SkipForward className="text-gray-12 size-3" />
+					</button>
+				</div>
+				<div className="flex flex-row flex-1 gap-4 justify-end items-center">
+					<div className="flex-1" />
+					<EditorButton
+						tooltipText="Toggle Split"
+						kbd={["S"]}
+						pressed={editorState.timeline.interactMode === "split"}
+						onChange={(v: boolean) => {
+							setEditorState((prev) => ({
+								...prev,
+								timeline: {
+									...prev.timeline,
+									interactMode: v ? "split" : "seek",
+								},
+							}));
+						}}
+						as={KToggleButton}
+						variant="danger"
+						leftIcon={
+							<Scissors
+								className={cx(
+									editorState.timeline.interactMode === "split"
+										? "text-white"
+										: "text-gray-12",
+								)}
+							/>
+						}
+					/>
+					<div className="w-px h-8 rounded-full bg-gray-4" />
+					<Tooltip kbd={["meta", "-"]} content="Zoom out">
+						<ZoomOut
+							onClick={() => {
+								updateZoom(
+									editorState.timeline.transform.zoom * 1.1,
+									editorState.playbackTime,
+								);
+							}}
+							className="text-gray-12 size-5 will-change-[opacity] transition-opacity hover:opacity-70 cursor-pointer"
+						/>
+					</Tooltip>
+					<Tooltip kbd={["meta", "+"]} content="Zoom in">
+						<ZoomIn
+							onClick={() => {
+								updateZoom(
+									editorState.timeline.transform.zoom / 1.1,
+									editorState.playbackTime,
+								);
+							}}
+							className="text-gray-12 size-5 will-change-[opacity] transition-opacity hover:opacity-70 cursor-pointer"
+						/>
+					</Tooltip>
+					<Slider
+						className="w-24"
+						minValue={0}
+						maxValue={1}
+						step={0.001}
+						value={[
+							Math.min(
+								Math.max(1 - editorState.timeline.transform.zoom / zoomOutLimit, 0),
+								1,
+							),
+						]}
+						onChange={([v]) => {
+							updateZoom((1 - v) * zoomOutLimit, editorState.playbackTime);
+						}}
+						formatTooltip={() =>
+							`${editorState.timeline.transform.zoom.toFixed(0)} seconds visible`
+						}
+					/>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// CSS for checkerboard grid (adaptive to light/dark mode)
 const gridStyle: React.CSSProperties = {
 	backgroundImage:
 		"linear-gradient(45deg, rgba(128,128,128,0.12) 25%, transparent 25%), " +
@@ -14,259 +293,125 @@ const gridStyle: React.CSSProperties = {
 	backgroundColor: "rgba(200,200,200,0.08)",
 };
 
-export function EditorPlayer() {
-	const {
-		videoUrl,
-		editorState,
-		setEditorState,
-		videoDuration,
-		project,
-	} = useEditorContext();
+function PreviewCanvas() {
+	const { videoUrl, videoData, editorState, project } = useEditorContext();
+	const [containerBounds, setContainerBounds] = useState<DOMRect | null>(null);
+	const containerRef = useRef<HTMLDivElement>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
-	const containerRef = useRef<HTMLDivElement>(null);
-	const [isLoading, setIsLoading] = useState(true);
-	const [canvasSize, setCanvasSize] = useState({ width: 1920, height: 1080 });
 
-	// Render frame to canvas with backgrounds, camera, and effects
-	const renderFrame = useCallback(() => {
-		const canvas = canvasRef.current;
-		const video = videoRef.current;
-		if (!canvas || !video || video.readyState < 2) return;
-
-		const ctx = canvas.getContext("2d");
-		if (!ctx) return;
-
-		// Clear canvas
-		ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-		// Draw background
-		const bg = project.background.source;
-		if (bg.type === "color") {
-			ctx.fillStyle = `rgb(${bg.color.join(",")})`;
-			ctx.fillRect(0, 0, canvas.width, canvas.height);
-		} else if (bg.type === "gradient") {
-			const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-			gradient.addColorStop(0, `rgb(${bg.from.join(",")})`);
-			gradient.addColorStop(1, `rgb(${bg.to.join(",")})`);
-			ctx.fillStyle = gradient;
-			ctx.fillRect(0, 0, canvas.width, canvas.height);
-		} else if (bg.type === "image" && bg.url) {
-			// For image backgrounds, we'd need to load the image
-			// For now, fallback to color
-			ctx.fillStyle = "rgb(0, 0, 0)";
-			ctx.fillRect(0, 0, canvas.width, canvas.height);
-		} else if (bg.type === "wallpaper") {
-			// For wallpapers, we'd need to load the wallpaper
-			// For now, fallback to color
-			ctx.fillStyle = "rgb(0, 0, 0)";
-			ctx.fillRect(0, 0, canvas.width, canvas.height);
-		}
-
-		// Draw video frame (cropped if needed)
-		const crop = project.background.crop;
-		if (crop) {
-			ctx.drawImage(
-				video,
-				crop.position.x,
-				crop.position.y,
-				crop.size.x,
-				crop.size.y,
-				0,
-				0,
-				canvas.width,
-				canvas.height,
-			);
-		} else {
-			ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-		}
-
-		// Draw camera overlay if not hidden
-		if (!project.camera.hide) {
-			const { position, size, shape, shadow } = project.camera;
-			ctx.save();
-
-			// Apply shadow if enabled
-			if (shadow) {
-				ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-				ctx.shadowBlur = 10;
-				ctx.shadowOffsetX = 0;
-				ctx.shadowOffsetY = 4;
-			}
-
-			// Draw camera frame (simplified - would need actual camera feed)
-			ctx.fillStyle = "rgba(100, 100, 100, 0.5)";
-			if (shape === "square") {
-				ctx.fillRect(position.x, position.y, size.x, size.y);
-			} else {
-				// Source shape - would need actual camera feed
-				ctx.fillRect(position.x, position.y, size.x, size.y);
-			}
-
-			ctx.restore();
-		}
-	}, [project, videoUrl]);
-
-	// Update canvas size based on container
 	useEffect(() => {
-		const container = containerRef.current;
-		if (!container) return;
-
-		const updateSize = () => {
-			const rect = container.getBoundingClientRect();
-			const aspect = OUTPUT_SIZE.x / OUTPUT_SIZE.y;
-			let width = rect.width - 8;
-			let height = width / aspect;
-
-			if (height > rect.height - 8) {
-				height = rect.height - 8;
-				width = height * aspect;
+		if (!containerRef.current) return;
+		const updateBounds = () => {
+			if (containerRef.current) {
+				setContainerBounds(containerRef.current.getBoundingClientRect());
 			}
-
-			setCanvasSize({ width, height });
 		};
-
-		updateSize();
-		const resizeObserver = new ResizeObserver(updateSize);
-		resizeObserver.observe(container);
-
+		updateBounds();
+		const resizeObserver = new ResizeObserver(updateBounds);
+		resizeObserver.observe(containerRef.current);
 		return () => resizeObserver.disconnect();
 	}, []);
 
-	// Render frame when video updates
 	useEffect(() => {
+		if (!videoRef.current || !canvasRef.current || !videoUrl || !videoData) return;
+
 		const video = videoRef.current;
-		if (!video) return;
+		const canvas = canvasRef.current;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) return;
 
-		const handleSeeked = () => {
-			renderFrame();
-		};
+		video.currentTime = editorState.previewTime ?? editorState.playbackTime;
 
-		const handleTimeUpdate = () => {
-			if (!editorState.playing) {
-				renderFrame();
+		const drawFrame = () => {
+			if (video.readyState >= 2) {
+				canvas.width = videoData.width;
+				canvas.height = videoData.height;
+				ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 			}
-			setEditorState((state) => ({
-				...state,
-				playbackTime: video.currentTime,
-			}));
 		};
 
-		video.addEventListener("seeked", handleSeeked);
-		video.addEventListener("timeupdate", handleTimeUpdate);
-
-		// Initial render
-		if (video.readyState >= 2) {
-			renderFrame();
-		}
+		video.addEventListener("loadeddata", drawFrame);
+		drawFrame();
 
 		return () => {
-			video.removeEventListener("seeked", handleSeeked);
-			video.removeEventListener("timeupdate", handleTimeUpdate);
+			video.removeEventListener("loadeddata", drawFrame);
 		};
-	}, [renderFrame, editorState.playing, setEditorState]);
+	}, [videoUrl, videoData, editorState.previewTime, editorState.playbackTime]);
 
-	// Re-render when project changes
-	useEffect(() => {
-		renderFrame();
-	}, [project, renderFrame]);
-
-	useEffect(() => {
-		const video = videoRef.current;
-		if (!video) return;
-
-		if (editorState.playing) {
-			video.play();
-		} else {
-			video.pause();
-		}
-	}, [editorState.playing]);
-
-	useEffect(() => {
-		const video = videoRef.current;
-		if (!video || !editorState.playbackTime) return;
-
-		if (Math.abs(video.currentTime - editorState.playbackTime) > 0.1) {
-			video.currentTime = editorState.playbackTime;
-		}
-	}, [editorState.playbackTime]);
-
-	useEffect(() => {
-		const video = videoRef.current;
-		if (!video) return;
-
-		const handleLoadedMetadata = () => {
-			setIsLoading(false);
-			renderFrame();
-		};
-
-		video.addEventListener("loadedmetadata", handleLoadedMetadata);
-		return () => video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-	}, [renderFrame]);
-
-	if (isLoading) {
+	if (!videoUrl || !videoData) {
 		return (
-			<div className="flex items-center justify-center flex-1 bg-gray-2 rounded-lg">
-				<p className="text-gray-11">Loading video...</p>
+			<div
+				ref={containerRef}
+				className="relative flex-1 justify-center items-center flex"
+			>
+				<div className="text-gray-11">Loading video...</div>
 			</div>
 		);
 	}
 
+	const padding = 4;
+	const containerAspect =
+		containerBounds && containerBounds.width && containerBounds.height
+			? (containerBounds.width - padding * 2) / (containerBounds.height - padding * 2)
+			: 1;
+	const frameAspect = videoData.width / videoData.height;
+
+	let size: { width: number; height: number };
+	if (frameAspect < containerAspect) {
+		const height = (containerBounds?.height ?? 0) - padding * 1;
+		size = {
+			width: height * frameAspect,
+			height,
+		};
+	} else {
+		const width = (containerBounds?.width ?? 0) - padding * 2;
+		size = {
+			width,
+			height: width / frameAspect,
+		};
+	}
+
 	return (
-		<div className="flex flex-col flex-1 min-w-0 bg-gray-2 rounded-lg overflow-hidden border border-gray-3">
-			<div
-				ref={containerRef}
-				className="relative flex-1 flex items-center justify-center"
-				style={gridStyle}
-			>
-				<canvas
-					ref={canvasRef}
-					className="max-w-full max-h-full rounded"
-					width={OUTPUT_SIZE.x}
-					height={OUTPUT_SIZE.y}
-					style={{
-						width: `${canvasSize.width}px`,
-						height: `${canvasSize.height}px`,
-					}}
-				/>
+		<div
+			ref={containerRef}
+			className="relative flex-1 justify-center items-center flex"
+		>
+			<div className="flex overflow-hidden absolute inset-0 justify-center items-center h-full">
 				<video
 					ref={videoRef}
-					src={videoUrl || undefined}
+					src={videoUrl}
 					className="hidden"
-					crossOrigin="anonymous"
 					preload="metadata"
 				/>
-			</div>
-			<div className="p-4 border-t border-gray-3">
-				<div className="flex items-center gap-2">
-					<button
-						onClick={() =>
-							setEditorState((state) => ({
-								...state,
-								playing: !state.playing,
-							}))
-						}
-						className="px-4 py-2 bg-gray-3 rounded hover:bg-gray-4 transition-colors"
-					>
-						{editorState.playing ? "⏸" : "▶"}
-					</button>
-					<div className="flex-1 text-sm text-gray-11 tabular-nums">
-						{formatTime(editorState.playbackTime)} / {formatTime(videoDuration)}
-					</div>
-				</div>
+				<canvas
+					ref={canvasRef}
+					style={{
+						width: `${size.width - padding * 2}px`,
+						height: `${size.height}px`,
+						...gridStyle,
+					}}
+					className="rounded"
+					width={videoData.width}
+					height={videoData.height}
+				/>
 			</div>
 		</div>
 	);
 }
 
-function formatTime(seconds: number): string {
-	const hours = Math.floor(seconds / 3600);
-	const minutes = Math.floor((seconds % 3600) / 60);
-	const secs = Math.floor(seconds % 60);
-
-	if (hours > 0) {
-		return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-	}
-	return `${minutes}:${secs.toString().padStart(2, "0")}`;
+function Time({
+	seconds,
+	fps,
+	className,
+}: {
+	seconds: number;
+	fps?: number;
+	className?: string;
+}) {
+	return (
+		<span className={cx("text-gray-11 text-sm tabular-nums", className)}>
+			{formatTime(seconds, fps ?? FPS)}
+		</span>
+	);
 }
-

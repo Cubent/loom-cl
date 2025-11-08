@@ -56,3 +56,4 @@ const Tooltip = ({
 Tooltip.displayName = TooltipPrimitive.Root.displayName;
 
 export { Tooltip };
+export default Tooltip;
