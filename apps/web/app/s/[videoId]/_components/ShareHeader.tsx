@@ -292,7 +292,17 @@ export const ShareHeader = ({
 								)}
 							</div>
 							{user !== null && (
-								<div className="hidden md:flex">
+								<div className="hidden md:flex gap-2">
+									{isOwner && (
+										<Button
+											onClick={() => {
+												push(`/studio/${data.id}`);
+											}}
+											variant="outline"
+										>
+											Edit in Studio Mode
+										</Button>
+									)}
 									<Button
 										onClick={() => {
 											push("/dashboard/caps?page=1");

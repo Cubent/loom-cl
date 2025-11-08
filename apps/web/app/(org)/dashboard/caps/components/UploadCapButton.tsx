@@ -431,6 +431,17 @@ async function legacyUploadCap(
 
 				xhr.onload = () => {
 					if (xhr.status >= 200 && xhr.status < 300) {
+						// Cloudinary returns JSON, not XML like S3
+						try {
+							const response = JSON.parse(xhr.responseText);
+							console.log("Cloudinary upload response:", response);
+							// Verify upload was successful
+							if (!response.public_id && !response.secure_url) {
+								console.error("Cloudinary upload response missing expected fields:", response);
+							}
+						} catch (e) {
+							console.error("Failed to parse Cloudinary response:", e, xhr.responseText);
+						}
 						progressTracker.cleanup();
 						// Guarantee final 100% progress update
 						const total = progressTracker.getTotal() || 1;
@@ -438,7 +449,8 @@ async function legacyUploadCap(
 						resolve();
 					} else {
 						progressTracker.cleanup();
-						reject(new Error(`Upload failed with status ${xhr.status}`));
+						console.error("Upload failed:", xhr.status, xhr.responseText);
+						reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
 					}
 				};
 				xhr.onerror = () => {
@@ -492,13 +504,25 @@ async function legacyUploadCap(
 
 				xhr.onload = () => {
 					if (xhr.status >= 200 && xhr.status < 300) {
+						// Cloudinary returns JSON, not XML like S3
+						try {
+							const response = JSON.parse(xhr.responseText);
+							console.log("Cloudinary screenshot upload response:", response);
+							// Verify upload was successful
+							if (!response.public_id && !response.secure_url) {
+								console.error("Cloudinary screenshot upload response missing expected fields:", response);
+							}
+						} catch (e) {
+							console.error("Failed to parse Cloudinary screenshot response:", e, xhr.responseText);
+						}
 						resolve();
 						queryClient.refetchQueries({
 							queryKey: ThumbnailRequest.queryKey(uploadId),
 						});
 					} else {
+						console.error("Screenshot upload failed:", xhr.status, xhr.responseText);
 						reject(
-							new Error(`Screenshot upload failed with status ${xhr.status}`),
+							new Error(`Screenshot upload failed with status ${xhr.status}: ${xhr.responseText}`),
 						);
 					}
 				};

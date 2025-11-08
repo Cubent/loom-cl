@@ -7,6 +7,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { editDate } from "@/actions/videos/edit-date";
 import { editTitle } from "@/actions/videos/edit-title";
+import Link from "next/link";
 import { Tooltip } from "@/components/Tooltip";
 import type { CapCardProps } from "./CapCard";
 

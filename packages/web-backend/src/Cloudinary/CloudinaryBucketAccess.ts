@@ -19,8 +19,11 @@ const safeCloudinaryApiResource = (publicId: string, options: { resource_type: s
 
 // Convert S3-style key (e.g., "userId/videoId/result.mp4") to Cloudinary public_id
 // Cloudinary uses folder structure, so we can keep the same structure
+// Note: Cloudinary preserves the path structure, so we keep the full key as public_id
+// The format will be determined by the uploaded file
 const keyToPublicId = (key: string): string => {
-	// Remove file extension for public_id, Cloudinary will handle format
+	// Keep the full key as public_id, Cloudinary will handle the format automatically
+	// This ensures the path structure is preserved (e.g., "userId/videoId/result")
 	return key.replace(/\.[^/.]+$/, "");
 };
 

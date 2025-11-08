@@ -14,6 +14,7 @@ import {
 	faCheck,
 	faCopy,
 	faDownload,
+	faEdit,
 	faEllipsis,
 	faGear,
 	faLink,
@@ -433,6 +434,16 @@ export const CapCard = ({
 								sideOffset={5}
 								suppressHydrationWarning
 							>
+								<DropdownMenuItem
+									onClick={(e) => {
+										e.stopPropagation();
+										router.push(`/studio/${cap.id}`);
+									}}
+									className="flex gap-2 items-center rounded-lg"
+								>
+									<FontAwesomeIcon className="size-3" icon={faEdit} />
+									<p className="text-sm text-gray-12">Edit in Studio Mode</p>
+								</DropdownMenuItem>
 								<DropdownMenuItem
 									onClick={(e) => {
 										e.stopPropagation();
